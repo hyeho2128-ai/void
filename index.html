@@ -519,6 +519,8 @@ async function deleteLink(id){
   buildWorld(); buildLeg(); buildRec();
   showStatus('삭제됐어요');
 }
+
+function buildRec(){
   const container=document.getElementById('rec-list');
   container.innerHTML='';
   if(!LINKS.length)return;
