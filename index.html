@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VOID — LinkBox</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;width:100vw;height:100vh;font-family:'Inter','Helvetica Neue',sans-serif}
+#wrap{width:100%;height:100vh;position:relative;overflow:hidden;background:#000;cursor:grab}
+#wrap.drag{cursor:grabbing}
+canvas#bg{position:absolute;inset:0;pointer-events:none;z-index:0}
+#world{position:absolute;transform-origin:50% 50%;top:0;left:0;z-index:1}
+
+#center-title{position:absolute;transform:translate(-50%,-50%);text-align:center;pointer-events:none;user-select:none;line-height:1}
+.ct-top{font-size:11px;font-weight:500;letter-spacing:5px;text-transform:uppercase;color:rgba(255,255,255,0.14);margin-bottom:12px;display:block}
+.ct-main{font-size:110px;font-weight:900;letter-spacing:-5px;line-height:.9;color:rgba(255,255,255,0.05);text-transform:uppercase;display:block}
+.ct-sub{font-size:110px;font-weight:900;letter-spacing:-5px;line-height:.9;color:rgba(255,255,255,0.03);text-transform:uppercase;display:block;margin-top:4px}
+
+.card{position:absolute;background:#111;border:0.5px solid rgba(255,255,255,0.09);border-radius:13px;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;transition:opacity .25s,border-color .2s,box-shadow .2s}
+.card:hover{border-color:rgba(255,255,255,0.18)}
+.card.open{border-color:rgba(255,255,255,0.24)!important;box-shadow:0 8px 40px rgba(0,0,0,.95)!important;z-index:900!important;opacity:1!important}
+
+/* uniform 14px padding on all sections */
+.ci{height:100%;display:flex;flex-direction:column}
+
+/* top section: badge + title */
+.c-top{padding:14px 14px 12px;flex:1;display:flex;flex-direction:column}
+.src-pill{display:inline-flex;align-items:center;font-size:9px;font-weight:700;letter-spacing:.7px;padding:3px 8px;border-radius:20px;margin-bottom:10px;align-self:flex-start}
+.sp-web{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.38)}
+.sp-yt{background:rgba(239,68,68,.16);color:#f87171}
+.sp-ig{background:rgba(236,72,153,.16);color:#f472b6}
+.sp-tw{background:rgba(59,130,246,.18);color:#60a5fa}
+.ctitle{font-size:13px;font-weight:600;line-height:1.38;letter-spacing:-.1px;color:rgba(255,255,255,0.85);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;flex:1}
+.card.open .ctitle{-webkit-line-clamp:2}
+
+/* divider */
+.cdiv{border:none;border-top:0.5px solid rgba(255,255,255,0.07);margin:0}
+
+/* expandable detail section */
+.cdetail{max-height:0;overflow:hidden;opacity:0;transition:max-height .42s cubic-bezier(.22,1,.36,1),opacity .32s}
+.card.open .cdetail{max-height:140px;opacity:1}
+.c-detail-inner{padding:12px 14px}
+.csummary{font-size:10.5px;color:rgba(255,255,255,0.38);line-height:1.65;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.clink{display:inline-block;margin-top:8px;font-size:9.5px;font-weight:600;color:rgba(180,200,255,0.7);cursor:pointer;letter-spacing:.2px;transition:color .15s}
+.clink:hover{color:#fff}
+
+/* footer section: dot·category  domain */
+.c-foot{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.ccat{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:500;color:rgba(255,255,255,0.25);white-space:nowrap}
+.cpip{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.cdom{font-size:9px;color:rgba(255,255,255,0.18);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px}
+.clabel{position:absolute;font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:0;white-space:nowrap;pointer-events:none;transform:translateX(-50%);transition:opacity .5s;color:rgba(255,255,255,0.18)}
+
+/* ── Recommend bar ── */
+#rec-bar{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  z-index:50;width:min(540px,90vw);
+  animation:recUp .65s cubic-bezier(.22,1,.36,1) 1.5s both;
+}
+@keyframes recUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+#rec-inner{
+  background:rgba(12,12,12,0.94);
+  border:0.5px solid rgba(255,255,255,0.1);
+  border-radius:16px;backdrop-filter:blur(24px);
+  padding:13px 16px 14px;
+}
+#rec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+#rec-lbl{display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,0.28)}
+#rec-dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:rpulse 2.2s ease-in-out infinite}
+@keyframes rpulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:.65;transform:scale(1.35)}}
+#rec-close{font-size:9px;color:rgba(255,255,255,0.2);cursor:pointer;padding:2px 7px;border-radius:4px;transition:all .15s;letter-spacing:.3px}
+#rec-close:hover{color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.06)}
+#rec-list{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+#rec-list::-webkit-scrollbar{display:none}
+.rc{flex-shrink:0;width:162px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .18s}
+.rc:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.16)}
+.rc-cat{display:flex;align-items:center;gap:4px;font-size:8px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,0.22);margin-bottom:5px}
+.rc-pip{width:4px;height:4px;border-radius:50%;flex-shrink:0}
+.rc-title{font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:5px}
+.rc-reason{font-size:8.5px;color:rgba(255,255,255,0.25);line-height:1.45}
+.rc-go{font-size:9px;font-weight:600;color:rgba(160,190,255,0.6);margin-top:6px;display:block}
+
+/* HUD */
+#hud{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:5px;z-index:50}
+.hb{width:40px;height:40px;background:rgba(12,12,12,0.92);border:0.5px solid rgba(255,255,255,0.1);border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.36);font-size:16px;transition:all .15s;backdrop-filter:blur(6px)}
+.hb:hover{background:rgba(28,28,28,.98);color:#fff;border-color:rgba(255,255,255,0.2)}
+#zlbl{position:fixed;bottom:20px;left:18px;font-size:9.5px;color:rgba(255,255,255,0.13);z-index:50;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+#leg{position:fixed;top:16px;left:16px;display:flex;flex-direction:column;gap:3px;z-index:50}
+.li{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:500;color:rgba(255,255,255,0.22);cursor:pointer;padding:3px 8px;border-radius:6px;transition:all .15s;letter-spacing:.3px}
+.li:hover,.li.on{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.72)}
+.ld{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="bg"></canvas>
+  <div id="world">
+    <div id="center-title">
+      <span class="ct-top">my space</span>
+      <span class="ct-main">VOID</span>
+      <span class="ct-sub">SPACE</span>
+    </div>
+  </div>
+</div>
+
+<div id="rec-bar">
+  <div id="rec-inner">
+    <div id="rec-head">
+      <div id="rec-lbl"><div id="rec-dot"></div>지금 이런 아티클이 필요하지 않으세요?</div>
+      <div id="rec-close" onclick="dismissRec()">닫기</div>
+    </div>
+    <div id="rec-list"></div>
+  </div>
+</div>
+
+<div id="leg"></div>
+<div id="hud">
+  <div class="hb" id="bp">+</div>
+  <div class="hb" id="bm">−</div>
+  <div class="hb" id="bf" style="font-size:12px">⊞</div>
+</div>
+<div id="zlbl">55%</div>
+
+<script>
+const CATS={
+  '커리어':        {color:'#e2e8f0',angle:0},
+  'AI·기술':       {color:'#a78bfa',angle:72},
+  '창업·비즈니스': {color:'#38bdf8',angle:144},
+  '마인드셋':      {color:'#f472b6',angle:216},
+  '디자인·프로덕트':{color:'#34d399',angle:288},
+};
+const CAT_KEYS=Object.keys(CATS);
+const NOW=Date.now(),DAY=86400000;
+const LINKS=[
+  {id:1, title:'이력서 대신 앱 하나를 제출했더니 취직됐습니다',summary:'코딩 경험 없이 바이브 코딩으로 Lovable 첫 바이브 코딩 엔지니어가 된 이야기.',category:'커리어',   source:'web',      domain:'eopla.net',    url:'https://eopla.net/magazines/40758',ts:NOW},
+  {id:2, title:'2025 이직 시장, 지금 움직여야 하는 이유',       summary:'AI 리터러시가 있는 제너럴리스트의 시대.',                                   category:'커리어',   source:'web',      domain:'brunch.co.kr', url:'#',ts:NOW-2*DAY},
+  {id:3, title:'포트폴리오 없이 첫 직장 구하는 전략',            summary:'채용담당자가 실제로 보는 것을 현직자가 공개한다.',                           category:'커리어',   source:'instagram',domain:'instagram.com',url:'#',ts:NOW-11*DAY},
+  {id:4, title:'GPT-4o 이미지 생성 — 실제 사용 후기',           summary:'텍스트 렌더링이 정확해졌지만 저작권 이슈는 여전히 숙제.',                   category:'AI·기술',  source:'web',      domain:'brunch.co.kr', url:'#',ts:NOW-1*DAY},
+  {id:5, title:'Claude 3.7 Sonnet — 코딩 벤치마크 완전 분석',   summary:'Anthropic 모델이 GPT-4o와 Gemini를 수치로 비교.',                           category:'AI·기술',  source:'twitter',  domain:'x.com',        url:'#',ts:NOW-5*DAY},
+  {id:6, title:'Cursor vs Windsurf — 2025 AI 코딩 에디터',      summary:'자동완성 품질, 컨텍스트 이해도, 가격 모두 다르다.',                         category:'AI·기술',  source:'youtube',  domain:'youtube.com',  url:'#',ts:NOW-19*DAY},
+  {id:7, title:'바이브 코딩으로 48시간 만에 SaaS 런칭',         summary:'기획부터 배포까지 48시간. AI 도구만으로 실제 서비스.',                      category:'창업·비즈니스',source:'youtube',domain:'youtube.com',url:'#',ts:NOW-3*DAY},
+  {id:8, title:'인디 해커 연 매출 30억 — 혼자 4개 서비스',     summary:'직원 없이 4개의 SaaS를 운영하는 인디 개발자의 루틴.',                      category:'창업·비즈니스',source:'web',   domain:'eopla.net',  url:'#',ts:NOW-17*DAY},
+  {id:9, title:'두려움은 시작하지 않을 때만 존재한다',           summary:'일단 시작하면 두려움은 흥분으로 바뀐다.',                                  category:'마인드셋', source:'instagram',domain:'instagram.com',url:'#',ts:NOW},
+  {id:10,title:'번아웃 없이 1인 창업하는 루틴 설계법',           summary:'에너지 관리가 시간 관리보다 중요하다.',                                    category:'마인드셋', source:'instagram',domain:'instagram.com',url:'#',ts:NOW-13*DAY},
+  {id:11,title:'프로덕트 디자이너가 AI 도구에 대처하는 방법',   summary:'Figma에 AI가 들어오면서 역할이 바뀌고 있다.',                              category:'디자인·프로덕트',source:'web',domain:'medium.com', url:'#',ts:NOW-1*DAY},
+  {id:12,title:'0→1 MVP 디자인에서 저지르는 5가지 실수',        summary:'완성도보다 빠른 학습이 중요한 초기 단계.',                                category:'디자인·프로덕트',source:'web',domain:'brunch.co.kr',url:'#',ts:NOW-21*DAY},
+];
+const SRC_LBL={web:'WEB',youtube:'YT',instagram:'IG',twitter:'X'};
+const SRC_CLS={web:'sp-web',youtube:'sp-yt',instagram:'sp-ig',twitter:'sp-tw'};
+const REC_WHY={
+  '커리어':'커리어 콘텐츠를 자주 저장하시네요',
+  'AI·기술':'AI 관련 아티클에 관심 많으시죠',
+  '창업·비즈니스':'창업 인사이트를 찾고 계신 것 같아요',
+  '마인드셋':'마인드셋 콘텐츠를 꾸준히 모으시네요',
+  '디자인·프로덕트':'디자인 트렌드에 관심 있으시죠',
+};
+
+const wrap=document.getElementById('wrap');
+const worldEl=document.getElementById('world');
+const cv=document.getElementById('bg');
+const titleEl=document.getElementById('center-title');
+const zlbl=document.getElementById('zlbl');
+const legEl=document.getElementById('leg');
+let ctx,W=0,H=0,T=0;
+let camX=0,camY=0,camS=1;
+let isDrag=false,moved=false,dsx=0,dsy=0,dcx=0,dcy=0;
+let openId=null,activeCat=null;
+const maxAge=Math.max(...LINKS.map(l=>NOW-l.ts))||1;
+function gd(ts){return Math.pow((NOW-ts)/maxAge,.65);}
+
+// ── Stars — 3 layers, visibly bright ──
+function initBg(){W=wrap.offsetWidth;H=wrap.offsetHeight;cv.width=W;cv.height=H;ctx=cv.getContext('2d');}
+const ST=[];
+function makeStars(){
+  ST.length=0;
+  for(let i=0;i<220;i++)ST.push({x:Math.random()*W,y:Math.random()*H,r:.18+Math.random()*.55,b:.18+Math.random()*.25,ph:Math.random()*Math.PI*2,sp:.06+Math.random()*.28,tw:true});
+  for(let i=0;i<80;i++) ST.push({x:Math.random()*W,y:Math.random()*H,r:.5+Math.random()*.75, b:.38+Math.random()*.38,ph:Math.random()*Math.PI*2,sp:.1+Math.random()*.35,tw:true});
+  for(let i=0;i<30;i++) ST.push({x:Math.random()*W,y:Math.random()*H,r:.9+Math.random()*.9,  b:.6+Math.random()*.38, ph:Math.random()*Math.PI*2,sp:.12+Math.random()*.4, tw:true});
+  for(let i=0;i<14;i++) ST.push({x:Math.random()*W,y:Math.random()*H,r:1.2+Math.random()*1.3,b:.72+Math.random()*.28,ph:0,sp:0,tw:false});
+}
+function drawBg(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  // dot grid
+  ctx.fillStyle='rgba(255,255,255,0.016)';
+  for(let x=20;x<W;x+=38)for(let y=20;y<H;y+=38){ctx.beginPath();ctx.arc(x,y,.85,0,Math.PI*2);ctx.fill();}
+  // stars
+  ST.forEach(s=>{
+    const tw=s.tw?(Math.sin(T*s.sp+s.ph)+1)/2:1;
+    const a=s.b*(.5+tw*.5);
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${a})`;ctx.fill();
+    if(s.r>1.1){
+      const g=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*6);
+      g.addColorStop(0,`rgba(210,225,255,${a*.28})`);g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(s.x,s.y,s.r*6,0,Math.PI*2);ctx.fill();
+    }
+  });
+  T+=.006;requestAnimationFrame(drawBg);
+}
+
+// ── Camera ──
+function cam(x,y,s,dur=0){
+  camX=x;camY=y;camS=s;
+  worldEl.style.transition=dur?`transform ${dur}ms cubic-bezier(.22,1,.36,1)`:'none';
+  worldEl.style.transform=`translate(${x}px,${y}px) scale(${s})`;
+  zlbl.textContent=Math.round(s*100)+'%';
+}
+const clampS=s=>Math.max(.12,Math.min(5,s));
+
+const CARD_W=192,CARD_H=130,CAT_R=300,SUB_R=92;
+function clXY(cat){const c=CATS[cat],rad=c.angle*(Math.PI/180)-Math.PI/2;return{x:CAT_R*Math.cos(rad),y:CAT_R*Math.sin(rad)};}
+
+function buildWorld(){
+  worldEl.querySelectorAll('.card,.clabel').forEach(e=>e.remove());
+  titleEl.style.left='0px';titleEl.style.top='0px';
+  const bycat={};
+  LINKS.forEach(l=>{(bycat[l.category]||(bycat[l.category]=[])).push(l);});
+  CAT_KEYS.forEach(cat=>{
+    const items=bycat[cat]||[];if(!items.length)return;
+    const cc=CATS[cat];const{x:clx,y:cly}=clXY(cat);
+    const lbl=document.createElement('div');
+    lbl.className='clabel';lbl.style.cssText=`left:${clx}px;top:${cly-SUB_R-CARD_H/2-16}px`;
+    lbl.textContent=cat;worldEl.appendChild(lbl);
+    setTimeout(()=>lbl.style.opacity='1',350);
+    const sorted=[...items].sort((a,b)=>b.ts-a.ts);
+    const n=sorted.length;
+    sorted.forEach((lk,i)=>{
+      const d=gd(lk.ts),scl=1-d*.3,sw=Math.round(CARD_W*scl),sh=Math.round(CARD_H*scl);
+      const op=1-d*.45,zi=Math.round(100-d*80);
+      let cx,cy;
+      if(n===1){cx=clx;cy=cly;}
+      else{const ang=(i/n)*Math.PI*2-Math.PI/2,r=SUB_R*(.7+n*.09);cx=clx+r*Math.cos(ang);cy=cly+r*Math.sin(ang);}
+      const px=cx-sw/2,py=cy-sh/2;
+      const el=document.createElement('div');
+      el.className='card';el.id='c'+lk.id;
+      el.dataset.cat=cat;el.dataset.depth=d;el.dataset.cx=cx;el.dataset.cy=cy;
+      el.dataset.px=px;el.dataset.py=py;el.dataset.sw=sw;el.dataset.sh=sh;
+      el.style.cssText=`left:${px}px;top:${py}px;width:${sw}px;height:${sh}px;opacity:${op};z-index:${zi}`;
+      const tfs=Math.round(13-d*2.5);
+      el.innerHTML=`<div class="ci">
+        <div class="c-top">
+          <span class="src-pill ${SRC_CLS[lk.source]||'sp-web'}">${SRC_LBL[lk.source]||'WEB'}</span>
+          <div class="ctitle" style="font-size:${tfs}px">${lk.title}</div>
+        </div>
+        <div class="cdetail">
+          <hr class="cdiv">
+          <div class="c-detail-inner">
+            <div class="csummary">${lk.summary}</div>
+            <span class="clink" onclick="event.stopPropagation();window.open('${lk.url}','_blank')">원문 읽기 →</span>
+          </div>
+        </div>
+        <hr class="cdiv">
+        <div class="c-foot">
+          <div class="ccat"><div class="cpip" style="background:${cc.color}"></div><span>${cat}</span></div>
+          <span class="cdom">${lk.domain}</span>
+        </div>
+      </div>`;
+      el.addEventListener('click',e=>{if(moved)return;e.stopPropagation();openCard(lk.id);});
+      worldEl.appendChild(el);
+    });
+  });
+}
+
+function openCard(id){
+  if(openId===id){closeCard();return;}
+  if(openId)closeCard(false);
+  openId=id;
+  const el=document.getElementById('c'+id);if(!el)return;
+  const cx=parseFloat(el.dataset.cx),cy=parseFloat(el.dataset.cy);
+  el.classList.add('open');el.style.zIndex='900';el.style.opacity='1';
+  el.style.width=CARD_W+'px';el.style.height='auto';
+  el.style.left=(cx-CARD_W/2)+'px';el.style.top=(cy-CARD_H/2)+'px';
+  const ts=Math.max(camS,.82);cam(W/2-cx*ts,H/2-cy*ts-14,ts,460);
+}
+function closeCard(){
+  if(!openId)return;
+  const el=document.getElementById('c'+openId);
+  if(el){
+    el.classList.remove('open');
+    const d=parseFloat(el.dataset.depth);
+    el.style.width=el.dataset.sw+'px';el.style.height=el.dataset.sh+'px';
+    el.style.left=el.dataset.px+'px';el.style.top=el.dataset.py+'px';
+    el.style.opacity=1-d*.45;el.style.zIndex=Math.round(100-d*80);
+  }
+  openId=null;
+}
+
+// ── Recommend ──
+function buildRec(){
+  const container=document.getElementById('rec-list');
+  const picks=[];const seen=new Set();
+  const bycat={};LINKS.forEach(l=>{(bycat[l.category]||(bycat[l.category]=[])).push(l);});
+  const topCat=Object.entries(bycat).sort((a,b)=>b[1].length-a[1].length)[0];
+  if(topCat){const o=[...topCat[1]].sort((a,b)=>a.ts-b.ts)[0];if(o&&!seen.has(o.id)){picks.push({lk:o,why:REC_WHY[o.category]||'자주 보시는 카테고리예요'});seen.add(o.id);}}
+  const old=[...LINKS].sort((a,b)=>a.ts-b.ts).find(l=>!seen.has(l.id));
+  if(old){picks.push({lk:old,why:'오래 전 저장 — 지금 읽기 딱 좋아요'});seen.add(old.id);}
+  const diff=LINKS.find(l=>!seen.has(l.id)&&l.category!==picks[0]?.lk.category);
+  if(diff){picks.push({lk:diff,why:'다른 분야도 탐색해보세요'});seen.add(diff.id);}
+  picks.forEach(({lk,why})=>{
+    const cc=CATS[lk.category]||{color:'#888'};
+    const div=document.createElement('div');div.className='rc';
+    div.innerHTML=`<div class="rc-cat"><div class="rc-pip" style="background:${cc.color}"></div>${lk.category}</div>
+      <div class="rc-title">${lk.title}</div>
+      <div class="rc-reason">${why}</div>
+      <span class="rc-go">읽으러 가기 →</span>`;
+    div.onclick=()=>{
+      const el=document.getElementById('c'+lk.id);if(!el)return;
+      const cx=parseFloat(el.dataset.cx),cy=parseFloat(el.dataset.cy);
+      const ts=Math.max(camS,.9);cam(W/2-cx*ts,H/2-cy*ts-14,ts,520);
+      setTimeout(()=>openCard(lk.id),320);
+    };
+    container.appendChild(div);
+  });
+}
+
+function dismissRec(){
+  const b=document.getElementById('rec-bar');
+  b.style.transition='opacity .3s,transform .3s';
+  b.style.opacity='0';b.style.transform='translateX(-50%) translateY(16px)';
+  setTimeout(()=>b.style.display='none',320);
+}
+
+function buildLeg(){
+  legEl.innerHTML='';
+  CAT_KEYS.forEach(name=>{
+    const c=CATS[name],cnt=LINKS.filter(l=>l.category===name).length;
+    const el=document.createElement('div');el.className='li'+(activeCat===name?' on':'');
+    el.innerHTML=`<div class="ld" style="background:${c.color}"></div><span>${name}</span><span style="margin-left:3px;opacity:.2">${cnt}</span>`;
+    el.onclick=()=>{
+      activeCat=activeCat===name?null:name;applyFilter();buildLeg();
+      if(activeCat){const{x,y}=clXY(activeCat);cam(W/2-x*Math.max(camS,.85),H/2-y*Math.max(camS,.85),Math.max(camS,.85),520);}
+    };
+    legEl.appendChild(el);
+  });
+}
+function applyFilter(){
+  worldEl.querySelectorAll('.card').forEach(el=>{
+    const show=!activeCat||el.dataset.cat===activeCat;
+    const d=parseFloat(el.dataset.depth);
+    el.style.opacity=show?(1-d*.45).toString():'0.03';
+    el.style.pointerEvents=show?'auto':'none';
+  });
+}
+
+wrap.addEventListener('mousedown',e=>{
+  if(e.target.closest('.card,.li,.hb'))return;
+  isDrag=true;moved=false;dsx=e.clientX;dsy=e.clientY;dcx=camX;dcy=camY;
+  wrap.classList.add('drag');if(openId)closeCard();
+});
+window.addEventListener('mousemove',e=>{
+  if(!isDrag)return;
+  const dx=e.clientX-dsx,dy=e.clientY-dsy;
+  if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
+  cam(dcx+dx,dcy+dy,camS,0);
+});
+window.addEventListener('mouseup',()=>{isDrag=false;wrap.classList.remove('drag');setTimeout(()=>moved=false,60);});
+wrap.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=wrap.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  const ns=clampS(camS*(1-e.deltaY*.001));
+  cam(mx-(mx-camX)*(ns/camS),my-(my-camY)*(ns/camS),ns,0);
+},{passive:false});
+let lD=0,tB={x:0,y:0,s:1,px:0,py:0};
+wrap.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length===2){
+    const[a,b]=[e.touches[0],e.touches[1]];
+    lD=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
+    const r=wrap.getBoundingClientRect();
+    tB={x:camX,y:camY,s:camS,px:(a.clientX+b.clientX)/2-r.left,py:(a.clientY+b.clientY)/2-r.top};
+  } else {
+    const t=e.touches[0];dsx=t.clientX;dsy=t.clientY;dcx=camX;dcy=camY;isDrag=true;moved=false;if(openId)closeCard();
+  }
+},{passive:false});
+wrap.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(e.touches.length===2){
+    const[a,b]=[e.touches[0],e.touches[1]];
+    const d=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
+    const ns=clampS(tB.s*(d/lD));
+    cam(tB.px-(tB.px-tB.x)*(ns/tB.s),tB.py-(tB.py-tB.y)*(ns/tB.s),ns,0);
+  } else if(isDrag){
+    const t=e.touches[0];const dx=t.clientX-dsx,dy=t.clientY-dsy;
+    if(Math.abs(dx)+Math.abs(dy)>4)moved=true;cam(dcx+dx,dcy+dy,camS,0);
+  }
+},{passive:false});
+wrap.addEventListener('touchend',()=>{isDrag=false;lD=0;setTimeout(()=>moved=false,60);});
+
+document.getElementById('bp').onclick=()=>{const c=W/2,d=H/2;cam(c-(c-camX)*1.25,d-(d-camY)*1.25,clampS(camS*1.25),360);};
+document.getElementById('bm').onclick=()=>{const c=W/2,d=H/2;cam(c-(c-camX)*.8,d-(d-camY)*.8,clampS(camS*.8),360);};
+document.getElementById('bf').onclick=()=>{activeCat=null;applyFilter();buildLeg();if(openId)closeCard();introFly();};
+
+function introFly(){
+  worldEl.style.transition='none';cam(W/2,H/2,2.6,0);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>cam(W/2,H/2,.55,1100)));
+}
+
+initBg();makeStars();buildWorld();buildLeg();buildRec();
+setTimeout(introFly,80);
+drawBg();
+</script>
+</body>
+</html>
