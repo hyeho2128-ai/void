@@ -268,26 +268,35 @@ async function loadLinks(){
 
 // ── Realtime subscription ──
 function subscribeRealtime(){
-  sb.channel('links-room')
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'links'},payload=>{
-      const r=payload.new;
-      const newLink={
-        id:r.id,url:r.url,title:r.title||r.domain,
-        summary:r.summary||'',category:r.category||'기타',
-        source:r.source||'web',domain:r.domain||getDomain(r.url),
-        ts:r.ts||new Date(r.created_at).getTime(),
-        user_name:r.user_name||'익명',user_color:r.user_color||'#888'
-      };
-      if(!LINKS.find(l=>l.id===newLink.id)){
+  sb.channel('public:links')
+    .on('postgres_changes',
+      {event:'INSERT', schema:'public', table:'links'},
+      payload=>{
+        const r=payload.new;
+        if(LINKS.find(l=>l.id===r.id)) return;
+        const newLink={
+          id:r.id, url:r.url,
+          title:r.title||r.domain||'링크',
+          summary:r.summary||'',
+          category:r.category||'기타',
+          source:r.source||'web',
+          domain:r.domain||getDomain(r.url||''),
+          ts:r.ts||new Date(r.created_at).getTime(),
+          user_name:r.user_name||'익명',
+          user_color:r.user_color||'#888'
+        };
         LINKS.unshift(newLink);
-        buildWorld();buildLeg();buildRec();
-        // 내가 올린 게 아닐 때만 알림
-        if(newLink.user_name!==userName){
+        buildWorld(); buildLeg(); buildRec();
+        if(newLink.user_name !== userName){
           showStatus(`✦ ${newLink.user_name}님이 링크를 추가했어요`);
         }
       }
-    })
-    .subscribe();
+    )
+    .subscribe(status=>{
+      if(status==='SUBSCRIBED'){
+        console.log('realtime connected');
+      }
+    });
 }
 
 // ── Add link ──
