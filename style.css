@@ -1,0 +1,114 @@
+/* ── Reset ── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; width: 100vw; height: 100vh; font-family: 'Inter','Helvetica Neue',sans-serif; }
+
+/* ── Canvas & world ── */
+#wrap  { width: 100%; height: 100vh; position: relative; overflow: hidden; background: #000; cursor: grab; }
+#wrap.drag { cursor: grabbing; }
+canvas#bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+#world { position: absolute; transform-origin: 50% 50%; top: 0; left: 0; z-index: 1; }
+
+/* ── Center title ── */
+#center-title { position: absolute; transform: translate(-50%,-50%); text-align: center; pointer-events: none; user-select: none; line-height: 1; }
+.ct-top  { font-size: 11px; font-weight: 500; letter-spacing: 5px; text-transform: uppercase; color: rgba(255,255,255,0.14); margin-bottom: 12px; display: block; }
+.ct-main { font-size: 110px; font-weight: 900; letter-spacing: -5px; line-height: .9; color: rgba(255,255,255,0.05); text-transform: uppercase; display: block; }
+.ct-sub  { font-size: 110px; font-weight: 900; letter-spacing: -5px; line-height: .9; color: rgba(255,255,255,0.03); text-transform: uppercase; display: block; margin-top: 4px; }
+
+/* ── Card ── */
+.card { position: absolute; background: #111; border: 0.5px solid rgba(255,255,255,0.09); border-radius: 13px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; transition: opacity .25s, border-color .2s, box-shadow .2s; }
+.card:hover { border-color: rgba(255,255,255,0.18); }
+.card.open  { border-color: rgba(255,255,255,0.24) !important; box-shadow: 0 8px 40px rgba(0,0,0,.95) !important; z-index: 900 !important; opacity: 1 !important; }
+
+.ci      { display: flex; flex-direction: column; }
+.c-top   { padding: 14px 14px 12px; display: flex; flex-direction: column; }
+
+/* source pill badge */
+.src-pill { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700; letter-spacing: .7px; padding: 3px 8px; border-radius: 20px; margin-bottom: 10px; align-self: flex-start; }
+.sp-web { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.38); }
+.sp-yt  { background: rgba(239,68,68,.16);    color: #f87171; }
+.sp-ig  { background: rgba(236,72,153,.16);   color: #f472b6; }
+.sp-tw  { background: rgba(59,130,246,.18);   color: #60a5fa; }
+
+/* title */
+.ctitle { font-size: 13px; font-weight: 600; line-height: 1.38; letter-spacing: -.1px; color: rgba(255,255,255,0.85); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
+.card.open .ctitle { -webkit-line-clamp: 2; }
+
+/* divider */
+.cdiv { border: none; border-top: 0.5px solid rgba(255,255,255,0.07); margin: 0; }
+
+/* expandable detail */
+.cdetail        { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .42s cubic-bezier(.22,1,.36,1), opacity .32s; }
+.card.open .cdetail { max-height: 140px; opacity: 1; }
+.c-detail-inner { padding: 10px 14px 0; }
+.csummary { font-size: 10.5px; color: rgba(255,255,255,0.38); line-height: 1.65; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* link + delete row — hidden until card opens */
+.clink-row { display: none; align-items: flex-end; justify-content: space-between; padding: 8px 14px 12px; gap: 8px; }
+.card.open .clink-row { display: flex; }
+.clink { display: inline-block; font-size: 9.5px; font-weight: 600; color: rgba(180,200,255,0.7); cursor: pointer; letter-spacing: .2px; transition: color .15s; }
+.clink:hover { color: #fff; }
+.cdel { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; font-weight: 600; color: rgba(255,100,100,0.55); cursor: pointer; letter-spacing: .2px; transition: color .15s; line-height: 1; }
+.cdel:hover { color: rgba(255,100,100,0.9); }
+.cdel-icon { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(255,100,100,0.5); display: inline-flex; align-items: center; justify-content: center; font-size: 8px; line-height: 1; flex-shrink: 0; }
+
+/* footer */
+.c-foot { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.ccat   { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 500; color: rgba(255,255,255,0.25); white-space: nowrap; }
+.cpip   { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.cdom   { font-size: 9px; color: rgba(255,255,255,0.18); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85px; }
+
+/* cluster label */
+.clabel { position: absolute; font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: 0; white-space: nowrap; pointer-events: none; transform: translateX(-50%); transition: opacity .5s; color: rgba(255,255,255,0.18); }
+
+/* ── Recommend bar ── */
+#rec-bar   { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; width: min(540px,90vw); animation: recUp .65s cubic-bezier(.22,1,.36,1) 1.5s both; }
+@keyframes recUp { from { opacity:0; transform: translateX(-50%) translateY(20px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+#rec-inner { background: rgba(12,12,12,0.94); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 14px; backdrop-filter: blur(24px); padding: 10px 12px 11px; }
+#rec-head  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+#rec-lbl   { display: flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: rgba(255,255,255,0.25); }
+#rec-dot   { width: 5px; height: 5px; border-radius: 50%; background: #fff; animation: rpulse 2.2s ease-in-out infinite; }
+@keyframes rpulse { 0%,100% { opacity:.22; transform:scale(1); } 50% { opacity:.6; transform:scale(1.3); } }
+#rec-close { font-size: 9px; color: rgba(255,255,255,0.18); cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all .15s; }
+#rec-close:hover { color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.06); }
+#rec-list  { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; }
+#rec-list::-webkit-scrollbar { display: none; }
+.rc        { flex-shrink: 0; width: 148px; background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.07); border-radius: 9px; padding: 8px 10px; cursor: pointer; transition: all .18s; }
+.rc:hover  { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.14); }
+.rc-cat    { display: flex; align-items: center; gap: 4px; font-size: 8px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: rgba(255,255,255,0.22); margin-bottom: 5px; }
+.rc-pip    { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.rc-title  { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.75); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ── URL input bar ── */
+#add-bar   { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 60; width: min(480px,72vw); animation: addBarDown .5s cubic-bezier(.22,1,.36,1) .2s both; }
+@keyframes addBarDown { from { opacity:0; transform:translateX(-50%) translateY(-12px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+#add-inner { display: flex; align-items: center; gap: 8px; background: rgba(12,12,12,0.95); border: 0.5px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 8px 8px 8px 14px; backdrop-filter: blur(24px); transition: border-color .2s; }
+#add-inner:focus-within { border-color: rgba(255,255,255,0.28); }
+#url-input { flex: 1; background: none; border: none; outline: none; font-family: 'Inter','Helvetica Neue',sans-serif; font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.82); letter-spacing: -.1px; caret-color: rgba(255,255,255,0.6); }
+#url-input::placeholder { color: rgba(255,255,255,0.2); font-size: 12.5px; }
+#add-btn   { flex-shrink: 0; height: 32px; padding: 0 14px; background: rgba(255,255,255,0.9); border: none; border-radius: 9px; font-family: 'Inter','Helvetica Neue',sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .2px; color: #000; cursor: pointer; transition: all .15s; white-space: nowrap; }
+#add-btn:hover    { background: #fff; }
+#add-btn:disabled { opacity: .45; cursor: not-allowed; }
+#add-status { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 60; font-size: 10.5px; font-weight: 500; letter-spacing: .2px; color: rgba(255,255,255,0.45); background: rgba(12,12,12,0.9); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 6px 14px; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; }
+#add-status.show { opacity: 1; }
+
+/* ── HUD ── */
+#hud  { position: fixed; bottom: 18px; right: 18px; display: flex; flex-direction: column; gap: 5px; z-index: 50; }
+.hb   { width: 40px; height: 40px; background: rgba(12,12,12,0.92); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.36); font-size: 16px; transition: all .15s; backdrop-filter: blur(6px); }
+.hb:hover { background: rgba(28,28,28,.98); color: #fff; border-color: rgba(255,255,255,0.2); }
+#zlbl { position: fixed; bottom: 20px; left: 18px; font-size: 9.5px; color: rgba(255,255,255,0.13); z-index: 50; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .card { border-radius: 12px; }
+  #add-bar { width: 92vw; top: 12px; }
+  #rec-bar { width: 92vw; bottom: 16px; }
+  #hud { bottom: 12px; right: 12px; }
+  .hb { width: 36px; height: 36px; font-size: 14px; }
+  #leg { top: 68px; }
+  /* bigger touch targets */
+  .clink, .cdel { padding: 6px 0; }
+}
+#leg  { position: fixed; top: 76px; left: 16px; display: flex; flex-direction: column; gap: 3px; z-index: 50; }
+.li   { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 500; color: rgba(255,255,255,0.22); cursor: pointer; padding: 3px 8px; border-radius: 6px; transition: all .15s; letter-spacing: .3px; }
+.li:hover, .li.on { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.72); }
+.ld   { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
